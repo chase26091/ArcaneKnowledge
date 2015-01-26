@@ -135,7 +135,7 @@ map.packetDefinitions[9] = function(packet) {
 
 var loader = new PIXI.AssetLoader(['/resources/assets.json']);
 loader.onComplete = function() {
-	socket = io('http://localhost');
+	socket = io(document.url);
 	socket.on('packet', function(packet) {
 		packet.queueTime = engine.timestamp();
 		map.addPacket(packet);
