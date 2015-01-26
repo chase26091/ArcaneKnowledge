@@ -123,7 +123,7 @@ io.on('connection', function(socket) {
 });
 
 /* Game Loop */
-var tickLengthMs = 1000 / 60;
+var tickLengthMs = 1000 / 20;
 var previousTick = engine.timestamp();
 var actualTicks = 0;
 
