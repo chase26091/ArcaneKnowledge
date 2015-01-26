@@ -1,0 +1,49 @@
+<html>
+
+<head>
+
+	<!-- Jquery -->
+	<script type = "text/javascript" src = "/client/libs/jquery.min.js" > </script>
+</head>
+
+<body>
+		<script type="text/javascript">
+			var sort_by = function(field, reverse, primer){
+			   var key = primer ? 
+			       function(x) {return primer(x[field]);} : 
+			       function(x) {return x[field];};
+
+			   reverse = [-1, 1][+!!reverse];
+
+			   return function (a, b) {
+			       return a = key(a), b = key(b), reverse * ((a > b) - (b > a));
+			   }; 
+			};
+
+			$.getJSON( "/resources/assets.json ")
+			  .done(function( json ) {
+			    json.frames.sort(sort_by('filename', true, function(a){
+			    	var value = 0;
+			    	var info = a.split('-');
+
+			    	var identifier = info[0];
+			    	var id = info[1].split('.')[0];
+
+			    	for(var i = 0; i < identifier.length; i++){
+			    		value += identifier.charCodeAt(i);
+			    	}
+			    	value *= 255;
+			    	value += Number(id);
+			    	return value;
+			    }));
+
+			    console.log(JSON.stringify(json));
+			  })
+			  .fail(function( jqxhr, textStatus, error ) {
+			    var err = textStatus + ", " + error;
+			    console.log( "Request Failed: " + err );
+			});
+		</script>
+	</body>
+
+</html>
