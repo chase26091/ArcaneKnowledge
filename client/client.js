@@ -1,3 +1,9 @@
+var addEffect = function(effect) {
+	EffectHandler.addEffect(effect);
+	world.addChild(effect);
+};
+
+/* World and Stage Setup */
 var stage = new PIXI.Stage(0x66FF99);
 
 var world = new PIXI.DisplayObjectContainer();
@@ -14,17 +20,18 @@ document.body.appendChild(renderer.view);
 
 stage.addChild(world);
 
-//depth comparison for draw layer.
 function depthCompare(a, b) {
-	if (a.z < b.z)
-		return -1;
-	if (a.z > b.z)
-		return 1;
-	return 0;
-}
+		if (a.z < b.z)
+			return -1;
+		if (a.z > b.z)
+			return 1;
+		return 0;
+	}
+	/* World and Stage Setup */
 
+
+/* Map Setup */
 var socket;
-
 var map = new engine.Map();
 
 var id = 0;
@@ -44,7 +51,7 @@ map.addEntity = function(entity) {
 	else if (entity.name) {
 
 		var name = new PIXI.Text(entity.name, {
-			font: "12px Arial",
+			font: "10px gameFont",
 			fill: "black"
 		});
 
@@ -60,8 +67,9 @@ map.addEntity = function(entity) {
 map.removeEntity = function(id) {
 	var entity = this.getEntity(id);
 
-	if (entity && entity.sprite)
+	if (entity && entity.sprite){
 		world.removeChild(entity.sprite);
+	}
 
 	delete this.entities[id];
 };
@@ -126,20 +134,30 @@ map.packetDefinitions[8] = function(packet) {
 map.packetDefinitions[9] = function(packet) {
 	var caster = this.getEntity(packet.casterId);
 
-	if(caster){
+	if (caster) {
 		caster.castSpell(packet.spellType, packet.properties);
 	}
 
 	console.log('[Cast Spell Packet] casterId = ' + packet.casterId + ', spellType = ' + packet.spellType);
 };
 
+/* Map Setup */
+
 var loader = new PIXI.AssetLoader(['/resources/assets.json']);
+
 loader.onComplete = function() {
 	socket = io(document.url);
 	socket.on('packet', function(packet) {
 		packet.queueTime = engine.timestamp();
 		map.addPacket(packet);
 	});
+
+	/* Engine Hooks */
+	engine.Mob.prototype.onHurtCallback = function(hurtingEntity, damage) {
+		var effect = new DamageText(damage, this.x, this.y);
+		addEffect(effect);
+	};
+	/* Engine Hooks */
 
 	requestAnimFrame(frame);
 };
@@ -162,6 +180,9 @@ var update = function(step) {
 		h: height
 	});
 
+	//update effects
+	updateEffects();
+
 	//update map
 	map.update();
 
@@ -172,8 +193,21 @@ var update = function(step) {
 	handleUserMovement();
 };
 
+var updateEffects = function() {
+	var i = EffectHandler.effects.length;
+	var effect;
+	while (i--) {
+		effect = EffectHandler.effects[i];
+		effect.update();
+
+		if (effect.requestingRemoval) {
+			world.removeChild(EffectHandler.effects.splice(i, 1)[0]);
+		}
+	}
+};
+
 var updateCamera = function() {
-	player = map.getClientPlayer();
+	var player = map.getClientPlayer();
 
 	if (player) {
 		world.position.x = -player.x + (width / 2);
@@ -184,11 +218,11 @@ var updateCamera = function() {
 var handleUserMouseDown = function(mouseData) {
 	var localPosition = mouseData.getLocalPosition(world);
 
-	player = map.getClientPlayer();
+	var player = map.getClientPlayer();
 
 	if (player) {
 		var projectile = player.fireProjectile(localPosition.x, localPosition.y);
-		if(projectile){	
+		if (projectile) {
 			var createdId = projectile.id;
 			socket.emit('packet', new engine.FireProjectilePacket(createdId, localPosition.x, localPosition.y));
 		}
@@ -196,6 +230,11 @@ var handleUserMouseDown = function(mouseData) {
 };
 
 var handleUserMovement = function() {
+	var player = map.getClientPlayer();
+
+	if (!player)
+		return;
+
 	//keyboard movement
 	var up = Key.isDown(Key.UP) || Key.isDown(Key.W);
 	var left = Key.isDown(Key.LEFT) || Key.isDown(Key.A);
@@ -210,9 +249,8 @@ var handleUserMovement = function() {
 	if (Key.isDown(Key.R)) {
 
 		var spellType = 0;
-		var player = map.getClientPlayer();
 
-		if (player && player.castSpell(spellType)) {
+		if (player.castSpell(spellType)) {
 			console.log('[Cast Spell] spellType = ' + spellType);
 			socket.emit('packet', new engine.CastSpellPacket(spellType));
 		}

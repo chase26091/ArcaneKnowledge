@@ -1,6 +1,6 @@
- 
 (function(exports) {
 
+	/* Utilities */
 	exports.timestamp = function() {
 		return new Date().getTime();
 	};
@@ -29,6 +29,7 @@
 
 		return output;
 	};
+	/* Utilities */
 
 	QuadTree = function(args) {
 
@@ -316,7 +317,7 @@
 		};
 	})();
 
-	//Packets
+	/* Packets */
 	Packet = Class.extend({
 		init: function(packetType) {
 			this.packetType = packetType;
@@ -416,7 +417,9 @@
 			this.properties = properties;
 		}
 	});
+	/* Packets */
 
+	/* Spells */
 	Spell = Class.extend({
 		init: function(spellType, owner, properties) {
 			this.spellType = spellType;
@@ -447,7 +450,7 @@
 			this._super(0, owner, properties);
 		},
 		cast: function(properties) {
-			if (this._super(properties)) {				
+			if (this._super(properties)) {
 				this.owner.fireProjectile(this.owner.x + 100, this.owner.y);
 				this.owner.fireProjectile(this.owner.x - 100, this.owner.y);
 				this.owner.fireProjectile(this.owner.x, this.owner.y + 100);
@@ -459,8 +462,9 @@
 			return false;
 		}
 	});
+	/* Spells */
 
-	//Entities
+	/* Entities */
 	Entity = Class.extend({
 		init: function(entityType, id, map, spriteId, x, y, z, w, h, properties) {
 			this.entityType = entityType;
@@ -497,7 +501,7 @@
 		update: function() {
 			this.updateVisibility();
 		},
-		onOutOfBounds: function(){
+		onOutOfBounds: function() {
 			//entity obligation
 		},
 		onCollision: function(collisionEntity, intersection) {
@@ -545,7 +549,7 @@
 			}
 
 
-			if(outOfBounds)
+			if (outOfBounds)
 				this.onOutOfBounds();
 
 			this.setPosition(this.x, this.y);
@@ -573,16 +577,33 @@
 		}
 	});
 
-	Mob = Entity.extend({
+	exports.Mob = Entity.extend({
 		init: function(entityType, id, map, spriteId, x, y, z, w, h, properties) {
 			this._super(entityType, id, map, spriteId, x, y, 1, 32, 32, properties);
+
 			this.collidable = true;
 			this.spellBook = {
 				0: new exports.FireBallSpell(this)
 			};
 
+			this.maxHealth = 100;
+			this.currentHealth = 100;
+
 			if (this.properties) {
 				this.name = this.properties.name || null;
+			}
+		},
+		setHealth: function(health) {
+			this.currentHealth = health;
+
+			if (this.currentHealth <= 0)
+				this.remove();
+		},
+		onHurt: function(hurtingEntity, damage) {
+			this.setHealth(this.currentHealth - damage);
+
+			if (this.onHurtCallback) {
+				this.onHurtCallback(hurtingEntity, damage);
 			}
 		},
 		onCollision: function(collisionEntity, intersection) {
@@ -635,7 +656,7 @@
 		}
 	});
 
-	exports.Player = Mob.extend({
+	exports.Player = exports.Mob.extend({
 		init: function(id, map, spriteId, x, y, properties) {
 			this._super(1, id, map, spriteId, x, y, 1, 32, 32, properties);
 		},
@@ -665,7 +686,6 @@
 	exports.Projectile = Entity.extend({
 		init: function(id, map, spriteId, x, y, properties) {
 			this._super(3, id, map, spriteId, x, y, 1, 32, 32, properties);
-			//this.collidable = true;
 			this.speed = 6;
 			this.maxDistance = 600;
 
@@ -679,13 +699,18 @@
 			this.velocityX = Math.cos(this.angle) * this.speed;
 			this.velocityY = Math.sin(this.angle) * this.speed;
 		},
-		onOutOfBounds: function(){
+		onOutOfBounds: function() {
 			this.remove();
 		},
 		onCollision: function(collisionEntity, intersection) {
 			if (collisionEntity.id === this.ownerId)
 				return;
 			else {
+
+				if (collisionEntity instanceof exports.Mob) {
+					collisionEntity.onHurt(this, 10);
+				}
+
 				this.remove();
 			}
 		},
@@ -701,12 +726,14 @@
 			}
 		}
 	});
+	/* Entities */
 
-	//Entity definitions
+	/* Entity definitions */
 	exports.entityDefinitions = [];
 	exports.entityDefinitions[1] = exports.Player;
 	exports.entityDefinitions[2] = exports.Tile;
 	exports.entityDefinitions[3] = exports.Projectile;
+	/* Entity definitions */
 
 	//Map
 	exports.Map = Class.extend({
@@ -823,6 +850,8 @@
 			}
 		},
 		update: function() {
+			//console.time('mapUpdate');
+
 			var entity;
 			var key;
 
@@ -849,6 +878,8 @@
 					}
 				}
 			}
+
+			//console.timeEnd('mapUpdate');
 		},
 		processPacket: function(packet) {
 			if (packet.packetType !== undefined) {

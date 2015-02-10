@@ -1,7 +1,9 @@
 var fs = require('fs');
 var sys = require("sys");
 var io = require('../app.js').io;
+
 var engine = require('../shared/engine.js');
+
 var log4js = require('log4js');
 var logger = log4js.getLogger();
 
@@ -36,25 +38,30 @@ fs.readFile('./resources/maps/' + mapName + '.json', function(err, data) {
 map.packetDefinitions[4] = function(packet) {
   var socket = this.sockets[packet.socketId];
   var clientPlayer = this.getEntity(packet.entityId);
-  var move = clientPlayer.move(packet.up, packet.left, packet.down, packet.right);
 
-  //send movement response to client
-  socket.emit('packet', new engine.MovementResponsePacket(move.calculatedX, move.calculatedY));
-  //send move to all clients
-  socket.broadcast.emit('packet', new engine.MoveEntityPacket(packet.entityId, move.calculatedX, move.calculatedY));
+  if (clientPlayer) {
+    var move = clientPlayer.move(packet.up, packet.left, packet.down, packet.right);
+
+    //send movement response to client
+    socket.emit('packet', new engine.MovementResponsePacket(move.calculatedX, move.calculatedY));
+    //send move to all clients
+    socket.broadcast.emit('packet', new engine.MoveEntityPacket(packet.entityId, move.calculatedX, move.calculatedY));
+  }
 };
 
 map.packetDefinitions[7] = function(packet) {
   var socket = this.sockets[packet.socketId];
   var clientPlayer = this.getEntity(packet.entityId);
 
-  var projectile = clientPlayer.fireProjectile(packet.targetX, packet.targetY);
-  logger.info('[Fire Projectile] id = ' + projectile.id);
+  if (clientPlayer) {
+    var projectile = clientPlayer.fireProjectile(packet.targetX, packet.targetY);
+    logger.info('[Fire Projectile] id = ' + projectile.id);
 
-  //send id update to client so its local id matches server's id
-  socket.emit('packet', new engine.ChangeEntityIdPacket(packet.localId, projectile.id));
-  //send add entity to the rest of listening clients so they have projectile
-  socket.broadcast.emit('packet', new engine.AddEntityPacket(projectile));
+    //send id update to client so its local id matches server's id
+    socket.emit('packet', new engine.ChangeEntityIdPacket(packet.localId, projectile.id));
+    //send add entity to the rest of listening clients so they have projectile
+    socket.broadcast.emit('packet', new engine.AddEntityPacket(projectile));
+  }
 };
 
 map.packetDefinitions[9] = function(packet) {
@@ -159,7 +166,7 @@ var gameLoop = function() {
 var update = function(delta) {
   map.update();
 
-  for(var i = 0; i < packetQueue.length; i++){
+  for (var i = 0; i < packetQueue.length; i++) {
     map.processPacket(packetQueue.shift());
   }
 };

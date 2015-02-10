@@ -1,0 +1,11 @@
+@font-face{
+	font-family: gameFont;
+	src : url('fonts/visitor1.ttf') format('truetype');
+}
+
+body {
+	font-family: 'gameFont';
+	margin: 0;
+	padding: 0;
+	background-color: #000000;
+}
